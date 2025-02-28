@@ -17,9 +17,19 @@ fi
 # Set up our url
 url="http://swscan.apple.com/content/catalogs/others/index-10.13-10.12-10.11-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog"
 
-function main () {
+function get_current() {
     # Try to get our current variable state
     current="$(/usr/sbin/nvram IASUCatalogURL 2>/dev/null)"
+    if [ -z "$current" ]; then
+        return
+    fi
+    # We got something - try to strip IASUCatalogURL\t from it
+    echo "${current/IASUCatalogURL	/}"
+}
+
+function main () {
+    # Try to get our current variable state
+    current="$(get_current)"
     echo
     clear 2>/dev/null
     echo "# High Sierra IASUCatalogURL #"
