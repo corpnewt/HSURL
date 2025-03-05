@@ -87,8 +87,8 @@ function verify_os () {
         message="Could not verify OS version!\n\nMissing required cli tools to check (sw_vers, cut)."
     else
         # Gather info about the currently running OS version
-        name="$(sw_vers --productName)"
-        prod="$(sw_vers --productVersion)"
+        name="$(sw_vers -productName)"
+        prod="$(sw_vers -productVersion)"
         # Check if we're running High Sierra (10.13)
         major="$(echo "$prod" | /usr/bin/cut -d "." -f1)"
         minor="$(echo "$prod" | /usr/bin/cut -d "." -f2)"
