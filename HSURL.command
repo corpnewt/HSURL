@@ -21,14 +21,17 @@ check_os="TRUE"
 host="apple.com"
 port=80
 network_status="Connection Not Verified"
+action=
 
 function print_help () {
-    echo "usage: HSURL.command [-o] [-n] [-u URL] [-s HOST] [-p PORT]"
+    echo "usage: HSURL.command [-h] [-1] [-2] [-o] [-n] [-u URL] [-s HOST] [-p PORT]"
     echo
     echo "HSURL - a bash script to set or unset IASUCatalogURL to bypass HTTPS on 10.13"
     echo
     echo "optional arguments:"
     echo "  -h, --help              show this help message and exit"
+    echo "  -1, --set-url           sets the URL in NVRAM without menu interaction"
+    echo "  -2, --unset-url         unsets the URL from NVRAM without menu interaction"
     echo "  -o, --override-os       override the OS check for 10.13.x"
     echo "  -n, --skip-network      skips the check for a network connection"
     echo "  -u URL, --url URL       override the URL to use for IASUCatalogURL"
@@ -40,6 +43,8 @@ function print_help () {
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -h|--help) print_help; exit 0 ;;
+        -1|--set-url) action="SET" ;;
+        -2|--unset-url) action="UNSET" ;;
         -o|--override-os) check_os="FALSE" ;;
         -n|--skip-network) check_network="FALSE"; network_status="Not Checked" ;;
         -u|--url) url="$2"; shift ;;
@@ -196,6 +201,17 @@ function verify_os () {
     done
 }
 
+if [ ! -z "$action" ]; then
+    if [ "$action" == "SET" ]; then
+        set_unset "$url"
+    elif [ "$action" == "UNSET" ]; then
+        set_unset
+    else
+        echo "Unknown action: $action"
+        exit 1
+    fi
+    exit
+fi
 if [ "$check_os" == "TRUE" ]; then
     verify_os
 fi
