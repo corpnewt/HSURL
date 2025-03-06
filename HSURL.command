@@ -14,11 +14,88 @@ if [ -e "/usr/bin/sudo" ]; then
     nvram="/usr/bin/sudo $nvram"
 fi
 
-# Set up our url
+# Set up our url and network check result
 url="http://swscan.apple.com/content/catalogs/others/index-10.13-10.12-10.11-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog"
+check_network="TRUE"
+check_os="TRUE"
+host="apple.com"
+port=80
+network_status="Connection Not Verified"
+
+function print_help () {
+    echo "usage: HSURL.command [-o] [-n] [-u URL] [-s HOST] [-p PORT]"
+    echo
+    echo "HSURL - a bash script to set or unset IASUCatalogURL to bypass HTTPS on 10.13"
+    echo
+    echo "optional arguments:"
+    echo "  -h, --help              show this help message and exit"
+    echo "  -o, --override-os       override the OS check for 10.13.x"
+    echo "  -n, --skip-network      skips the check for a network connection"
+    echo "  -u URL, --url URL       override the URL to use for IASUCatalogURL"
+    echo "  -s HOST, --host HOST    override the apple.com host in the network check"
+    echo "  -p PORT, --port PORT    override port 80 in the network check"
+}
+
+# Gather any passed arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -h|--help) print_help; exit 0 ;;
+        -o|--override-os) check_os="FALSE" ;;
+        -n|--skip-network) check_network="FALSE"; network_status="Not Checked" ;;
+        -u|--url) url="$2"; shift ;;
+        -s|--host) host="$2"; shift ;;
+        -p|--port) port="$2"; shift;;
+        *) echo "Unknown parameter passed: $1"; print_help; exit 1 ;;
+    esac
+    shift
+done
+
+function verify_connection() {
+    # Try to check if we have internet - warn if we appear not
+    # to, and ask if the user wants to continue still.
+    local message= nc=
+    echo
+    clear 2>/dev/null
+    echo "# Checking For Network #"
+    echo
+    nc="/usr/bin/nc"
+    # Make sure the command we need exists
+    if [ ! -e "$nc" ]; then
+        echo "Could not locate $nc! Skipping network check..."
+        return
+    fi
+    # Actually run our network check - connect to port 80
+    # to verify HTTP
+    echo "$nc -zG 1 $host $port"
+    $nc -zG 1 "$host" "$port" >/dev/null 2>&1
+    if [ "$?" == "0" ]; then
+        echo " - Succeeded"
+        network_status="Connected"
+        return
+    fi
+    echo " - Something went wrong"
+    network_status="Connection Not Detected"
+    # We appear to have network issues - warn, and ask if the
+    # user wants to continue
+    while true; do
+        echo
+        clear 2>/dev/null
+        echo "# Network Connection Error #"
+        echo
+        echo "Could not detect an active network connection!"
+        echo
+        read -r -p "Do you wish to continue? [y/n]: " yn
+        case $yn in
+            [Yy]* ) break;;
+            [NnQq]* ) exit;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+}
 
 function get_current() {
     # Try to get our current variable state
+    local current=
     current="$(/usr/sbin/nvram IASUCatalogURL 2>/dev/null)"
     if [ -z "$current" ]; then
         return
@@ -29,6 +106,7 @@ function get_current() {
 
 function main () {
     # Try to get our current variable state
+    local current=
     current="$(get_current)"
     echo
     clear 2>/dev/null
@@ -39,6 +117,7 @@ function main () {
     else
         echo "Current: $current"
     fi
+    echo "Network: $network_status"
     echo
     echo "1. Set HTTP IASUCatalogURL (Pre-Install)"
     echo "2. Unset IASUCatalogURL    (Post-Install)"
@@ -82,7 +161,7 @@ function set_unset () {
 }
 
 function verify_os () {
-    message=
+    local message=
     if [ ! -e "/usr/bin/sw_vers" ] || [ ! -e "/usr/bin/cut" ]; then
         message="Could not verify OS version!\n\nMissing required cli tools to check (sw_vers, cut)."
     else
@@ -117,5 +196,10 @@ function verify_os () {
     done
 }
 
-verify_os
+if [ "$check_os" == "TRUE" ]; then
+    verify_os
+fi
+if [ "$check_network" == "TRUE" ]; then
+    verify_connection
+fi
 main
